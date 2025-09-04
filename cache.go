@@ -14,6 +14,7 @@ import (
 
 var (
 	cache = make(map[string]*CacheTable)
+	lfuCaches = make(map[string]*LFUCache)
 	mutex sync.RWMutex
 )
 
@@ -39,4 +40,25 @@ func Cache(table string) *CacheTable {
 	}
 
 	return t
+}
+
+// LFUCache returns the existing LFU cache with given name or creates a new one
+// if the cache does not exist yet.
+func LFUCache(name string, capacity int) *LFUCache {
+	mutex.RLock()
+	c, ok := lfuCaches[name]
+	mutex.RUnlock()
+
+	if !ok {
+		mutex.Lock()
+		c, ok = lfuCaches[name]
+		// Double check whether the cache exists or not.
+		if !ok {
+			c = NewLFUCache(name, capacity)
+			lfuCaches[name] = c
+		}
+		mutex.Unlock()
+	}
+
+	return c
 }
